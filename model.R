@@ -52,6 +52,28 @@ pitchers %>%
   ggplot(aes(x=`Vote Pts`)) +
   geom_histogram()
 
+batters %>%
+  ggplot(aes(x=WAR, y=`Vote Pts`)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  labs(y="Vote Points", title="Batter's WAR vs MVP Vote Points")
+
+pitchers %>%
+  ggplot(aes(x=WAR, y=`Vote Pts`)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  labs(y="Vote Points", title="Pitcher's WAR vs MVP Vote Points")
+
+batters %>%
+  ggplot(aes(x=Position, y=`Vote Pts`)) +
+  geom_boxplot() +
+  labs(y="Vote Points", title="Batter's Position vs MVP Vote Points")
+
+pitchers %>%
+  ggplot(aes(x=Position, y=`Vote Pts`)) +
+  geom_boxplot() +
+  labs(y="Vote Points", title="Pitcher's Position vs MVP Vote Points")
+
 batter_model <- stan_glm(`Vote Pts` ~ League + Position + COVID + `W-L%`
                          + WAR + AB + OBP + SLG,
                          family = Gamma(link = "log"), data = batters, seed = 440)
