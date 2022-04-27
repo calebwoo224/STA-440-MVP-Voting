@@ -116,27 +116,56 @@ nl_data$`Primary Position` <- nl_primary
 table(al_data$`Primary Position`)
 table(nl_data$`Primary Position`)
 
-al_data <- al_data %>%
-  mutate(is_P = case_when(`Primary Position` == "P" ~ T,
-                          `Primary Position` == "DH/P" ~ T,
-                          T ~ F)) %>%
-  mutate(is_B = case_when(`Primary Position` == "P" ~ F,
-                          `Primary Position` == "DH/P" ~ T,
-                          T ~ T))
-
-nl_data <- nl_data %>%
-  mutate(is_P = case_when(`Primary Position` == "P" ~ T,
-                          T ~ F)) %>%
-  mutate(is_B = case_when(`Primary Position` == "P" ~ F,
-                          T ~ T))
+al_data$League <- rep("AL", nrow(al_data))
+nl_data$League <- rep("NL", nrow(nl_data))
 
 both <- rbind(al_data, nl_data)
-both$`Primary Position` <- as.factor(both$`Primary Position`)
-both$`Primary Position` <- relevel(both$`Primary Position`, ref = "OF")
-levels(both$`Primary Position`)
-typeof(both$`Primary Position`)
-table(both$`Primary Position`)
+both <- rbind(both %>%
+  filter(Name == "Shohei Ohtani"), both)
 
-model <- stan_glm(`Vote Pts` ~ `W-L%` + `Primary Position` + WAR + is_B + AB + is_P + IP,
-                  family = gaussian(link = "identity"), data = both)
-model$coefficients
+which(both == "Shohei Ohtani", arr.ind = T)
+both[1, "Primary Position"] <- "P"
+both[1, "WAR"] <- 4.1
+both[439, "Primary Position"] <- "DH"
+both[439, "WAR"] <- 4.9
+
+batter_data <- both %>%
+  filter(`Primary Position` != "P") %>%
+  select("Year", "League", "Tm", "Name", "Rank", "Vote Pts",
+         "1st Place","Share", "W-L%", "Primary Position",
+         "WAR", "AB", "OBP", "SLG")
+
+pitcher_data <- both %>%
+  filter(`Primary Position` == "P") %>%
+  select("Year", "League", "Tm", "Name", "Rank", "Vote Pts",
+         "1st Place","Share", "W-L%", "Primary Position",
+         "WAR", "IP", "ERA", "WHIP")
+
+batter_data <- batter_data %>%
+  mutate(COVID = case_when(Year == 2020 ~ T,
+                           Year != 2020 ~ F))
+
+pitcher_data <- pitcher_data %>%
+  mutate(COVID = case_when(Year == 2020 ~ T,
+                           Year != 2020 ~ F))
+
+p1 <- pitcher_data %>%
+  filter(IP < 130, Year != 2020) %>%
+  mutate(`Primary Position` = "RP")
+
+p2 <- pitcher_data %>%
+  filter(IP >= 130, Year != 2020) %>%
+  mutate(`Primary Position` = "SP")
+
+p3 <- pitcher_data %>%
+  filter(Year == 2020, IP < 50) %>%
+  mutate(`Primary Position` = "RP")
+
+p4 <- pitcher_data %>%
+  filter(Year == 2020, IP > 50) %>%
+  mutate(`Primary Position` = "SP")
+
+pitcher_all <- rbind(p1, p2, p3, p4)
+
+write.csv(batter_data, "batter_mvp.csv", row.names = F)
+write.csv(pitcher_all, "pitcher_mvp.csv", row.names = F)
