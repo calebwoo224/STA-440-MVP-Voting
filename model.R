@@ -1,5 +1,7 @@
 library(tidyverse)
 library(rstanarm)
+library(bayesplot)
+library(kableExtra)
 
 batters <- read.csv("batter_mvp.csv", check.names = F)
 pitchers <- read.csv("pitcher_mvp.csv", check.names = F)
@@ -42,13 +44,67 @@ pitchers$Position = relevel(pitchers$Position, ref = "SP")
 batters$COVID = relevel(batters$COVID, ref = "FALSE")
 pitchers$COVID = relevel(pitchers$COVID, ref = "FALSE")
 
+batters %>%
+  ggplot(aes(x=`Vote Pts`)) +
+  geom_histogram()
+
+pitchers %>%
+  ggplot(aes(x=`Vote Pts`)) +
+  geom_histogram()
+
 batter_model <- stan_glm(`Vote Pts` ~ League + Position + COVID + `W-L%`
                          + WAR + AB + OBP + SLG,
-                         family = gaussian(link = "identity"), data = batters, seed = 440)
-batter_model$stan_summary
+                         family = Gamma(link = "log"), data = batters, seed = 440)
+
+plot(batter_model, "trace")
+pp_check(batter_model)
+
+batter_results <- as.data.frame(batter_model$stan_summary) %>%
+  select("mean", "2.5%", "97.5%")
+names(batter_results) <- c("Mean", "Lower Bound", "Upper Bound")
+rownames(batter_results) <- c("Intercept", "American League", "Catcher", "Corner Infielder", "Designated Hitter",
+                              "Middle Infielder", "COVID Season", "Team's Win %", "WAR",
+                              "At Bats", "On Base Percentage", "Slugging Percentage",
+                              "shape", "mean_PPD", "log-posterior")
+batter_results %>%
+  kbl(caption = "MVP Batters Model Results", digits = 3) %>%
+  kable_styling(full_width = F)
+
+batter_diagnostics <- as.data.frame(batter_model$stan_summary) %>%
+  select("n_eff", "Rhat")
+names(batter_diagnostics) <- c("Effective Sample Size", "R hat")
+rownames(batter_diagnostics) <- c("Intercept", "American League", "Catcher", "Corner Infielder", "Designated Hitter",
+                                  "Middle Infielder", "COVID Season", "Team's Win %", "WAR",
+                                  "At Bats", "On Base Percentage", "Slugging Percentage",
+                                  "shape", "mean_PPD", "log-posterior")
+batter_diagnostics %>%
+  kbl(caption = "MVP Batters Model Diagnostics", digits = 3) %>%
+  kable_styling(full_width = F)
 
 pitcher_model <-  stan_glm(`Vote Pts` ~ League + Position + COVID + `W-L%`
                           + WAR + IP + ERA + `H&BB`,
-                          family = gaussian(link = "identity"), data = pitchers, seed = 440)
-pitcher_model$stan_summary
+                          family = Gamma(link = "log"), data = pitchers, seed = 440)
+
+plot(pitcher_model, "trace")
+pp_check(pitcher_model)
+
+pitcher_results <- as.data.frame(pitcher_model$stan_summary) %>%
+  select("mean", "2.5%", "97.5%")
+names(pitcher_results) <- c("Mean", "Lower Bound", "Upper Bound")
+rownames(pitcher_results) <- c("Intercept", "American League", "Reliever", "COVID Season", "Team's Win %",
+                               "WAR", "Innings Pitched", "Earned Run Average", "Hits and Walks Allowed",
+                              "shape", "mean_PPD", "log-posterior")
+pitcher_results %>%
+  kbl(caption = "MVP Pitchers Model Results", digits = 3) %>%
+  kable_styling(full_width = F)
+
+pitcher_diagnostics <- as.data.frame(pitcher_model$stan_summary) %>%
+  select("n_eff", "Rhat")
+names(pitcher_diagnostics) <- c("Effective Sample Size", "R hat")
+rownames(pitcher_diagnostics) <- c("Intercept", "American League", "Reliever", "COVID Season", "Team's Win %",
+                                   "WAR", "Innings Pitched", "Earned Run Average", "Hits and Walks Allowed",
+                                   "shape", "mean_PPD", "log-posterior")
+pitcher_diagnostics %>%
+  kbl(caption = "MVP Pitchers Model Diagnostics", digits = 3) %>%
+  kable_styling(full_width = F)
 
