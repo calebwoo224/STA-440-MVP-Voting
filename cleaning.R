@@ -1,5 +1,4 @@
 library(tidyverse)
-library(rstanarm)
 library(stringr)
 
 al_data <- read.csv("al_mvp.csv", check.names = F)
