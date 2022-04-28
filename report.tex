@@ -1,0 +1,304 @@
+% Options for packages loaded elsewhere
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+%
+\documentclass[
+]{article}
+\usepackage{lmodern}
+\usepackage{amsmath}
+\usepackage{ifxetex,ifluatex}
+\ifnum 0\ifxetex 1\fi\ifluatex 1\fi=0 % if pdftex
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provide euro and other symbols
+  \usepackage{amssymb}
+\else % if luatex or xetex
+  \usepackage{unicode-math}
+  \defaultfontfeatures{Scale=MatchLowercase}
+  \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+\fi
+% Use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{microtype.sty}{% use microtype if available
+  \usepackage[]{microtype}
+  \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\makeatletter
+\@ifundefined{KOMAClassName}{% if non-KOMA class
+  \IfFileExists{parskip.sty}{%
+    \usepackage{parskip}
+  }{% else
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{6pt plus 2pt minus 1pt}}
+}{% if KOMA class
+  \KOMAoptions{parskip=half}}
+\makeatother
+\usepackage{xcolor}
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
+\IfFileExists{bookmark.sty}{\usepackage{bookmark}}{\usepackage{hyperref}}
+\hypersetup{
+  pdftitle={Final Project: MLB MVP Voting Analysis},
+  pdfauthor={Caleb Woo},
+  hidelinks,
+  pdfcreator={LaTeX via pandoc}}
+\urlstyle{same} % disable monospaced font for URLs
+\usepackage[margin=1in]{geometry}
+\usepackage{graphicx}
+\makeatletter
+\def\maxwidth{\ifdim\Gin@nat@width>\linewidth\linewidth\else\Gin@nat@width\fi}
+\def\maxheight{\ifdim\Gin@nat@height>\textheight\textheight\else\Gin@nat@height\fi}
+\makeatother
+% Scale images if necessary, so that they will not overflow the page
+% margins by default, and it is still possible to overwrite the defaults
+% using explicit options in \includegraphics[width, height, ...]{}
+\setkeys{Gin}{width=\maxwidth,height=\maxheight,keepaspectratio}
+% Set default figure placement to htbp
+\makeatletter
+\def\fps@figure{htbp}
+\makeatother
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\setcounter{secnumdepth}{-\maxdimen} % remove section numbering
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{wrapfig}
+\usepackage{float}
+\usepackage{colortbl}
+\usepackage{pdflscape}
+\usepackage{tabu}
+\usepackage{threeparttable}
+\usepackage{threeparttablex}
+\usepackage[normalem]{ulem}
+\usepackage{makecell}
+\usepackage{xcolor}
+\ifluatex
+  \usepackage{selnolig}  % disable illegal ligatures
+\fi
+
+\title{Final Project: MLB MVP Voting Analysis}
+\author{Caleb Woo}
+\date{4/27/2022}
+
+\begin{document}
+\maketitle
+
+\hypertarget{introduction}{%
+\section{1: Introduction}\label{introduction}}
+
+\hypertarget{methodology}{%
+\section{2: Methodology}\label{methodology}}
+
+In order to understand and quantify some of the factors that correlate
+with MVP voting, I fit 2 separate Bayesian generalized linear models on
+the MVP vote points of batters and pitchers respectively.
+
+Below is the equation for the MVP batters model: \[
+\text{log}(\text{Vote Points}) = \beta_{0} + \beta_{1}*\text{I(League = AL)} + \beta_{2}*\text{I(Position = C)} + \beta_{3}*\text{I(Position = CIF)} + \beta_{4}*\text{I(Position = DH)} + \beta_{5}*\text{I(Position = MIF)} + \beta_{6}*\text{I(COVID = True)} + \beta_{7}*\text{Team's Win %} + \beta_{8}*\text{WAR} + \beta_{9}*\text{AB} + \beta_{10}*\text{OBP} + \beta_{11}*\text{SLG}
+\]
+
+\hypertarget{results}{%
+\section{3: Results}\label{results}}
+
+\begin{table}[H]
+
+\caption{\label{tab:batter-results}MVP Batters Model Results}
+\centering
+\begin{tabular}[t]{l|r|r|r}
+\hline
+  & Mean & Lower Bound & Upper Bound\\
+\hline
+Intercept & -14.866 & -16.600 & -13.106\\
+\hline
+American League & -0.101 & -0.265 & 0.062\\
+\hline
+Catcher & 0.502 & 0.168 & 0.860\\
+\hline
+Corner Infielder & 0.095 & -0.094 & 0.286\\
+\hline
+Designated Hitter & -0.014 & -0.341 & 0.338\\
+\hline
+Middle Infielder & -0.064 & -0.288 & 0.155\\
+\hline
+COVID Season & 3.169 & 2.624 & 3.731\\
+\hline
+Team's Win \% & 0.069 & 0.056 & 0.082\\
+\hline
+WAR & 0.278 & 0.229 & 0.329\\
+\hline
+At Bats & 0.007 & 0.006 & 0.009\\
+\hline
+On Base Percentage & 0.091 & 0.061 & 0.120\\
+\hline
+Slugging Percentage & 0.114 & 0.098 & 0.130\\
+\hline
+shape & 0.900 & 0.819 & 0.981\\
+\hline
+mean\_PPD & 117.082 & 84.456 & 184.867\\
+\hline
+log-posterior & -3547.999 & -3553.863 & -3544.040\\
+\hline
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+
+\caption{\label{tab:pitcher-results}MVP Pitchers Model Results}
+\centering
+\begin{tabular}[t]{l|r|r|r}
+\hline
+  & Mean & Lower Bound & Upper Bound\\
+\hline
+Intercept & 3.502 & 0.483 & 6.571\\
+\hline
+American League & 0.114 & -0.307 & 0.515\\
+\hline
+Reliever & -1.672 & -2.877 & -0.435\\
+\hline
+COVID Season & -1.366 & -2.668 & 0.067\\
+\hline
+Team's Win \% & 0.025 & -0.021 & 0.069\\
+\hline
+WAR & 0.329 & 0.088 & 0.573\\
+\hline
+Innings Pitched & 0.000 & -0.018 & 0.018\\
+\hline
+Earned Run Average & -0.102 & -0.688 & 0.487\\
+\hline
+Hits and Walks Allowed & -0.016 & -0.029 & -0.003\\
+\hline
+shape & 0.649 & 0.533 & 0.774\\
+\hline
+mean\_PPD & 31.950 & 22.397 & 45.532\\
+\hline
+log-posterior & -716.996 & -722.815 & -713.422\\
+\hline
+\end{tabular}
+\end{table}
+
+\hypertarget{discussion}{%
+\section{4: Discussion}\label{discussion}}
+
+\hypertarget{appendix}{%
+\section{5: Appendix}\label{appendix}}
+
+\hypertarget{appendix-a-mvp-batters-model-diagnostics}{%
+\subsection{Appendix A: MVP Batters Model
+Diagnostics}\label{appendix-a-mvp-batters-model-diagnostics}}
+
+\hypertarget{a.1-trace-plot-convergence}{%
+\subsubsection{A.1: Trace Plot
+Convergence}\label{a.1-trace-plot-convergence}}
+
+\includegraphics{report_files/figure-latex/batter-trace-1.pdf}
+
+\hypertarget{a.2-p-p-plot}{%
+\subsubsection{A.2: P-P Plot}\label{a.2-p-p-plot}}
+
+\includegraphics{report_files/figure-latex/batter-pp-1.pdf}
+
+\hypertarget{a.3-effective-sample-size-and-r-hat}{%
+\subsubsection{A.3: Effective Sample Size and R
+hat}\label{a.3-effective-sample-size-and-r-hat}}
+
+\begin{table}[H]
+
+\caption{\label{tab:batter-diagnostics}MVP Batters Model Diagnostics}
+\centering
+\begin{tabular}[t]{l|r|r}
+\hline
+  & Effective Sample Size & R hat\\
+\hline
+Intercept & 4196.266 & 1.000\\
+\hline
+American League & 4887.884 & 1.000\\
+\hline
+Catcher & 4497.899 & 1.000\\
+\hline
+Corner Infielder & 4307.317 & 1.000\\
+\hline
+Designated Hitter & 4016.162 & 0.999\\
+\hline
+Middle Infielder & 4102.730 & 1.000\\
+\hline
+COVID Season & 3825.410 & 1.000\\
+\hline
+Team's Win \% & 4994.132 & 1.000\\
+\hline
+WAR & 4287.711 & 1.000\\
+\hline
+At Bats & 3647.982 & 1.000\\
+\hline
+On Base Percentage & 4908.036 & 1.000\\
+\hline
+Slugging Percentage & 4398.588 & 1.000\\
+\hline
+shape & 5546.637 & 0.999\\
+\hline
+mean\_PPD & 4342.228 & 1.001\\
+\hline
+log-posterior & 1890.084 & 1.000\\
+\hline
+\end{tabular}
+\end{table}
+
+\hypertarget{appendix-b-mvp-pitchers-model-diagnostics}{%
+\subsection{Appendix B: MVP Pitchers Model
+Diagnostics}\label{appendix-b-mvp-pitchers-model-diagnostics}}
+
+\hypertarget{b.1-trace-plot-convergence}{%
+\subsubsection{B.1: Trace Plot
+Convergence}\label{b.1-trace-plot-convergence}}
+
+\includegraphics{report_files/figure-latex/pitcher-trace-1.pdf}
+
+\hypertarget{b.2-p-p-plot}{%
+\subsubsection{B.2: P-P Plot}\label{b.2-p-p-plot}}
+
+\includegraphics{report_files/figure-latex/pitcher-pp-1.pdf}
+
+\hypertarget{b.3-effective-sample-size-and-r-hat}{%
+\subsubsection{B.3: Effective Sample Size and R
+hat}\label{b.3-effective-sample-size-and-r-hat}}
+
+\begin{table}[H]
+
+\caption{\label{tab:pitcher-diagnostics}MVP Pitchers Model Diagnostics}
+\centering
+\begin{tabular}[t]{l|r|r}
+\hline
+  & Effective Sample Size & R hat\\
+\hline
+Intercept & 2915.406 & 1.001\\
+\hline
+American League & 3464.171 & 1.000\\
+\hline
+Reliever & 1930.641 & 1.001\\
+\hline
+COVID Season & 2253.579 & 1.000\\
+\hline
+Team's Win \% & 3184.188 & 1.000\\
+\hline
+WAR & 2453.447 & 1.003\\
+\hline
+Innings Pitched & 1871.157 & 1.002\\
+\hline
+Earned Run Average & 2256.265 & 1.001\\
+\hline
+Hits and Walks Allowed & 2172.497 & 1.000\\
+\hline
+shape & 3711.253 & 1.000\\
+\hline
+mean\_PPD & 3224.246 & 1.001\\
+\hline
+log-posterior & 1446.830 & 1.000\\
+\hline
+\end{tabular}
+\end{table}
+
+\hypertarget{references}{%
+\section{6: References}\label{references}}
+
+\end{document}

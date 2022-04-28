@@ -1,0 +1,220 @@
+---
+title: 'Final Project: MLB MVP Voting Analysis'
+author: "Caleb Woo"
+date: "4/27/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo=F, message=F, warning=F)
+library(tidyverse)
+library(rstanarm)
+library(bayesplot)
+library(kableExtra)
+library(knitr)
+library(tinytex)
+```
+
+# 1: Introduction
+
+## 1.1: Background Information
+
+MLB's most valuable player award is bestowed upon one player in the American League and one player in the National League each year. Every year after the regular season, a group of sports writers are entrusted to evaluate some of the best players in each league and thus nominate MVPs. Given the rather opaque voting process, there are certain years where there is confusion, if not controversy, over which players receive MVP votes. For a while, sports writers could only reference traditional batting and pitching statistics to inform their votes. This all changed with the invention of the statistic wins above replacement (WAR) in 2004 which measures the total offensive and defensive value a player contributed that season. Since WAR takes into account a player's offensive and defensive contributions over a full season, it is now often the go to statistic for quickly evaluating the best players in the league. Perhaps WAR has strongly informed MLB MVP voters since 2004 as we see a moderate positive correlation between WAR and MVP vote points from 2004 to 2021 below.
+
+```{r data}
+batters <- read.csv("batter_mvp.csv", check.names = F)
+pitchers <- read.csv("pitcher_mvp.csv", check.names = F)
+
+batters <- batters %>%
+  mutate(`W-L%` = 100*`W-L%`) %>%
+  mutate(OBP = 100*OBP) %>%
+  mutate(SLG = 100*SLG) %>%
+  select("Name", "Year", "Tm",
+         "Vote Pts", "League", "Primary Position", "COVID",
+         "W-L%", "WAR", "AB", "OBP", "SLG")
+
+pitchers <- pitchers %>%
+  mutate(Partial = round(as.numeric(IP - floor(IP)), 1))
+
+pitchers <- pitchers %>%
+  mutate(IP = case_when(Partial == 0.1 ~ IP - Partial + 0.33,
+                         Partial == 0.2 ~ IP - Partial + 0.67,
+                         T ~ IP)) %>%
+  mutate(`W-L%` = 100*`W-L%`) %>%
+  mutate(`H&BB` = round(WHIP*IP, 0)) %>%
+  select("Name", "Year", "Tm",
+         "Vote Pts", "League", "Primary Position", "COVID",
+         "W-L%", "WAR", "IP", "ERA", "H&BB")
+
+names(batters)[6] <- "Position"
+names(pitchers)[6] <- "Position"
+
+batters$League <- factor(batters$League)
+pitchers$League <- factor(pitchers$League)
+batters$Position <- factor(batters$Position)
+pitchers$Position <- factor(pitchers$Position)
+batters$COVID <- factor(batters$COVID)
+pitchers$COVID <- factor(pitchers$COVID)
+
+batters$League = relevel(batters$League, ref = "NL")
+pitchers$League = relevel(pitchers$League, ref = "NL")
+batters$Position = relevel(batters$Position, ref = "OF")
+pitchers$Position = relevel(pitchers$Position, ref = "SP")
+batters$COVID = relevel(batters$COVID, ref = "FALSE")
+pitchers$COVID = relevel(pitchers$COVID, ref = "FALSE")
+```
+```{r bwar-corr}
+batters %>%
+  ggplot(aes(x=WAR, y=`Vote Pts`)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  labs(y="Vote Points", title="Batter's WAR vs MVP Vote Points")
+```
+
+While WAR appears to correlate with MVP vote points, I became interested in other factors and considerations that correlate with MVP voting performance as well. Voters appear to value health and availability. Even if a certain player was elite for half a season, the player will have a difficult time garnering high nominations on MVP ballots. In addition, voters tend to nominate players on good, if not winning, teams. While the MVP is an individual award, many voters seem to believe that the best player on a great team is more valuable than the best player in the league who happens to play on a mediocre team. Furthermore, how voters treat players of different positions will be interesting to investigate. In general, few pitchers have ever won the MVP award over the past century with voters tending to favor elite offensive players.
+
+## 1.2: Data Description
+
+I gathered all data from the baseball reference website. Baseball reference has a page for the full MVP voting results for every year from 1911 to 2021. The MVP voting results include the number of vote points each candidate secured along with batting and pitching statistics. Each voter has 10 spots on their ballot and a 1st place nomination from a voter gives the player 14 vote points. 2nd to 10th place nominations are worth 9, 8, 7, 6, 5, 4, 3, 2, 1 points, respectively. Scraping the MVP results pages provided me with most of the data I needed.
+
+However there is some crucial extra information that I thought would be necessary to supplement my data. One important piece of information is the player's team's winning percentage for that season. While voters are supposed to nominate the most valuable player regardless of how well a player's team is performing, there have been some noticeable biases towards good players on winning teams as opposed to great players on losing teams. As Mike Trout dominated the 2010s on subpar LA Angels teams, many voters acknowledged how superior he was to his peers and nominated him multiple times despite this bias. I think quantifying the correlation between a player's team's winning percentage and how well a player does in MVP voting will reveal some insights into this bias.
+
+```{r bpos-box}
+batters %>%
+  ggplot(aes(x=Position, y=`Vote Pts`)) +
+  geom_boxplot() +
+  labs(y="Vote Points", title="Batter's Position vs MVP Vote Points")
+```
+
+Another important piece of information I added was the primary position of every player. As shown in the boxplot of batter positions vs MVP vote points above, there are some noticeable differences in MVP voting outcomes between different positions. I have narrowed down the different categories of positions to OF, C, CIF, MIF, and DH which refer to outfielder, catcher, corner infielder, middle infielder, and designated hitter respectively. The outfielder category corresponds to all center fielders, left fielders, and right fielders. The corner infielder category corresponds to first basemen and third basemen. The middle infielder category corresponds to shortstops and second basemen. Some of the best hitters in baseball are often first basemen which may explain why the average vote points of corner infielders is so much higher than other positions, especially given the context that MVP voting tends to favor offensive performance over defensive performance. On the other hand, the middle infield positions and catcher are considered the most demanding defensive positions and as a result, most middle infielders and catchers are poor hitters on average when compared to corner infielders. Perhaps voters were more forgiving of lower offensive performances among middle infielders and catchers which led to their nominations in the first place. However, catchers and middle infielders have much lower average vote points than corner infielders which suggests that the overall lack of offensive starpower in these positions may contribute to low nominations and few vote points awarded to these players.
+
+## 1.3: Variables
+
+There are several baseball statistics that I will use in this analysis. WAR is wins above replacement and measures a player's overall value by calculating how many more wins a player is worth than a replacement-level player. A replacement-level player would be a Minor League player or an unsigned free agent. This means that players who man more defensively demanding positions such as catcher, shortstop, second base, and center field will have a higher WAR than a first baseman, third baseman, left fielder, or right fielder who offers the same overall production because the more demanding defensive positions offer a lower level of production from replacement-level players.
+
+At bats are the number of times a batter faces pitchers without including plate appearances where the batter walked, was hit by a pitch, or hit a sacrifice fly ball. On base percentage is how often a batter reaches first base or further which includes hits, walks, and hit by pitches but does not include errors or fielder's choices. Slugging percentage is the total number of bases a player averages per at bat. Slugging percentage assigns a value of one to a single, two to a double, three to a triple, and four to a home run. By doing so, slugging percentage combines the information of batting average with how much damage, in terms of total bases, that player contributes per hit.
+
+Innings pitched are the total number of innings throughout the season a pitcher pitched. Earned run average is the average number of earned runs a pitcher allows per nine innings. Earned runs are runs that are scored without the intervention of some error in the field. Hits and Walks allowed, which I will refer to as H&BB, are the number of hits and walks allowed by the pitcher that season. This was derived from WHIP which is the walks and hits per inning pitched. I multiplied WHIP by innings pitched to derive H&BB which I believe to be a more interpretable variable in my MVP pitchers model below.
+
+# 2: Methodology
+
+In order to understand and quantify some of the factors that correlate with MVP voting, I fit 2 separate Bayesian generalized linear models on the MVP vote points of batters and pitchers respectively. Since batters and pitchers have different statistics correlating with their level of success, I felt it to be most logical and interpretable to fit separate models rather than try to use 1 model with many indicator variables.
+
+Below is the equation for the MVP batters model:
+$$
+\text{log}(\text{Vote Points}) = \beta_{0} + \beta_{1}*\text{I(League = AL)} + \beta_{2}*\text{I(Position = C)} + \beta_{3}*\text{I(Position = CIF)} + \beta_{4}*\text{I(Position = DH)}
+$$
+$$
++\beta_{5}*\text{I(Position = MIF)} + \beta_{6}*\text{I(COVID = True)} + \beta_{7}*\text{Team's Win %} + \beta_{8}*\text{WAR} + \beta_{9}*\text{AB} + \beta_{10}*\text{OBP} + \beta_{11}*\text{SLG}
+$$
+There are three categorical variables in league, position, and COVID. League refers to whether a batter played in the American League or National League for the given season. Position corresponds to the primary position that the batter played on the field. As mentioned above, I have narrowed down the different categories of positions to OF, C, CIF, MIF, and DH in order to consolidate 9 potential categories into 5 categories with enough observations in each category. COVID refers to whether the player and his stats correspond to the 2020 pandemic shortened season or not.
+
+There are five numerical variables in team's winning percentage, WAR, AB, OBP, and SLG. The team's winning percentage corresponds to the percentage of games the player's team won that year. For the few players in the dataset who were traded midseason, I averaged the winning percentage of the two teams they played on during that season. WAR is wins above replacement, AB is at bats, OBP is on base percentage, and SLG is slugging percentage. I have multiplied team's winning percentage, on base percentage, and slugging percentage by 100 so that model interpretations can be in terms of a unit increase in the percentage.
+
+The five different categories for position will help me quantify how MVP voting correlates differently among different positions. The player's team's winning percentage will help me uncover potential biases towards players on good teams. Since at bats are cumulative across a whole season, it is a measure of a player's availability and will help me understand the correlation between health and MVP voting outcomes. WAR is a measure of overall success and OBP and SLG are measures of offensive success which will help me quantify how overall success and offensive success correlates with MVP voting among batters. League is a control variable to uncover potential differences in MVP voting outcomes between the 2 leagues. Finally, COVID is also a control variable to help account for the pandemic shortened season in 2020 and the lower overall at bats and WAR numbers because of that.
+
+Below is the equation for the MVP pitchers model:
+$$
+\text{log}(\text{Vote Points}) = \beta_{0} + \beta_{1}*\text{I(League = AL)} + \beta_{2}*\text{I(Position = RP)} + \beta_{3}*\text{I(COVID = True)}
+$$
+$$
++\beta_{4}*\text{Team's Win %} + \beta_{5}*\text{WAR} + \beta_{6}*\text{IP} + \beta_{7}*\text{ERA} + \beta_{8}*\text{H&BB}
+$$
+Similar to the batters model, the pitchers model also includes the same three categorical variables, two of the same numerical variables, and three other numerical variables. League and COVID in the pitchers model is identical to the same two variables in the batters model. There are two categories for pitcher position: SP and RP which refer to starting pitcher and relief pitcher respectively. The team's winning percentage and WAR in the pitchers model is identical to the same two variables in the batters model. IP is innings pitched, ERA is earned run average, and H&BB is the number of hits and walks allowed by the pitcher that season.
+
+Although pitchers are only classified as starters or relievers, including position in the MVP pitchers model will help me quantify differences in MVP voting outcomes between the 2 types of pitchers. Innings pitched are cumulative so similar to at bats in the MVP batters model, it will help me understand the correlation between health and MVP voting. I also utilize WAR as a measure of overall success in the MVP pitcher model in combination with ERA and H&BB, which are measures of pitching success, to help me quantify the correlation between overall success and pitching success and MVP voting among pitchers. Just like the MVP batters model, I include league and COVID as control variables.
+
+# 3: Results
+```{r batter-model, include=FALSE}
+batter_model <- stan_glm(`Vote Pts` ~ League + Position + COVID + `W-L%`
+                         + WAR + AB + OBP + SLG,
+                         family = Gamma(link = "log"), data = batters, seed = 440)
+```
+```{r batter-results, fig.pos='H'}
+batter_results <- as.data.frame(batter_model$stan_summary) %>%
+  select("mean", "2.5%", "97.5%")
+names(batter_results) <- c("Mean", "Lower Bound", "Upper Bound")
+rownames(batter_results) <- c("Intercept", "American League", "Catcher", "Corner Infielder", "Designated Hitter",
+                              "Middle Infielder", "COVID Season", "Team's Win %", "WAR",
+                              "At Bats", "On Base Percentage", "Slugging Percentage",
+                              "shape", "mean_PPD", "log-posterior")
+batter_results %>%
+  kbl(caption = "MVP Batters Model Results", digits = 3) %>%
+  kable_styling(full_width = F, latex_options = "HOLD_position")
+```
+
+```{r pitcher-model, include=FALSE}
+pitcher_model <-  stan_glm(`Vote Pts` ~ League + Position + COVID + `W-L%`
+                          + WAR + IP + ERA + `H&BB`,
+                          family = Gamma(link = "log"), data = pitchers, seed = 440)
+```
+```{r pitcher-results, fig.pos='H'}
+pitcher_results <- as.data.frame(pitcher_model$stan_summary) %>%
+  select("mean", "2.5%", "97.5%")
+names(pitcher_results) <- c("Mean", "Lower Bound", "Upper Bound")
+rownames(pitcher_results) <- c("Intercept", "American League", "Reliever", "COVID Season", "Team's Win %",
+                               "WAR", "Innings Pitched", "Earned Run Average", "Hits and Walks Allowed",
+                              "shape", "mean_PPD", "log-posterior")
+pitcher_results %>%
+  kbl(caption = "MVP Pitchers Model Results", digits = 3) %>%
+  kable_styling(full_width = F, latex_options = "HOLD_position")
+```
+
+# 4: Discussion
+
+# 5: Appendix
+
+## Appendix A: MVP Batters Model Diagnostics
+
+### A.1: Trace Plot Convergence
+```{r batter-trace}
+plot(batter_model, "trace")
+```
+
+### A.2: P-P Plot
+```{r batter-pp}
+pp_check(batter_model)
+```
+
+### A.3: Effective Sample Size and R hat
+```{r batter-diagnostics, fig.pos='H'}
+batter_diagnostics <- as.data.frame(batter_model$stan_summary) %>%
+  select("n_eff", "Rhat")
+names(batter_diagnostics) <- c("Effective Sample Size", "R hat")
+rownames(batter_diagnostics) <- c("Intercept", "American League", "Catcher", "Corner Infielder", "Designated Hitter",
+                                  "Middle Infielder", "COVID Season", "Team's Win %", "WAR",
+                                  "At Bats", "On Base Percentage", "Slugging Percentage",
+                                  "shape", "mean_PPD", "log-posterior")
+batter_diagnostics %>%
+  kbl(caption = "MVP Batters Model Diagnostics", digits = 3) %>%
+  kable_styling(full_width = F, latex_options = "HOLD_position")
+```
+
+## Appendix B: MVP Pitchers Model Diagnostics
+
+### B.1: Trace Plot Convergence
+```{r pitcher-trace}
+plot(pitcher_model, "trace")
+```
+
+### B.2: P-P Plot
+```{r pitcher-pp}
+pp_check(pitcher_model)
+```
+
+### B.3: Effective Sample Size and R hat
+```{r pitcher-diagnostics, fig.pos='H'}
+pitcher_diagnostics <- as.data.frame(pitcher_model$stan_summary) %>%
+  select("n_eff", "Rhat")
+names(pitcher_diagnostics) <- c("Effective Sample Size", "R hat")
+rownames(pitcher_diagnostics) <- c("Intercept", "American League", "Reliever", "COVID Season", "Team's Win %",
+                                   "WAR", "Innings Pitched", "Earned Run Average", "Hits and Walks Allowed",
+                                   "shape", "mean_PPD", "log-posterior")
+pitcher_diagnostics %>%
+  kbl(caption = "MVP Pitchers Model Diagnostics", digits = 3) %>%
+  kable_styling(full_width = F, latex_options = "HOLD_position")
+```
+
+# 6: References
+
+
