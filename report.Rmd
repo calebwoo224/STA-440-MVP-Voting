@@ -120,11 +120,14 @@ $$
 $$
 +\beta_{4}*\text{Team's Win %} + \beta_{5}*\text{WAR} + \beta_{6}*\text{IP} + \beta_{7}*\text{ERA} + \beta_{8}*\text{H&BB}
 $$
-Similar to the batters model, the pitchers model also includes the same three categorical variables, two of the same numerical variables, and three other numerical variables. League and COVID in the pitchers model is identical to the same two variables in the batters model. There are two categories for pitcher position: SP and RP which refer to starting pitcher and relief pitcher respectively. The team's winning percentage and WAR in the pitchers model is identical to the same two variables in the batters model. IP is innings pitched, ERA is earned run average, and H&BB is the number of hits and walks allowed by the pitcher that season.
+Similar to the batters model, the pitchers model also includes the same three categorical variables, two of the same numerical variables, and three other numerical variables. League and COVID in the pitchers model is identical to the same two variables in the batters model. There are two categories for pitcher position: SP and RP which refer to starting pitcher and relief pitcher respectively. The team's winning percentage and WAR in the pitchers model is identical to the same two variables in the batters model. IP is innings pitched, ERA is earned run average, and H&BB is the number of hits and walks allowed by the pitcher that season. Just like the MVP batters model, I multiplied team's winning percentage by 100 so that model interpretations can be in terms of a unit increase in the percentage.
 
 Although pitchers are only classified as starters or relievers, including position in the MVP pitchers model will help me quantify differences in MVP voting outcomes between the 2 types of pitchers. Innings pitched are cumulative so similar to at bats in the MVP batters model, it will help me understand the correlation between health and MVP voting. I also utilize WAR as a measure of overall success in the MVP pitcher model in combination with ERA and H&BB, which are measures of pitching success, to help me quantify the correlation between overall success and pitching success and MVP voting among pitchers. Just like the MVP batters model, I include league and COVID as control variables.
 
 # 3: Results
+
+Below are the coefficient and 95% Bayesian credible interval results for the MVP batters model:
+
 ```{r batter-model, include=FALSE}
 batter_model <- stan_glm(`Vote Pts` ~ League + Position + COVID + `W-L%`
                          + WAR + AB + OBP + SLG,
@@ -143,6 +146,10 @@ batter_results %>%
   kable_styling(full_width = F, latex_options = "HOLD_position")
 ```
 
+Among positions, catcher is the only position among the 4 non baseline positions to be significant at the 95% Bayesian credible interval. With an exponentiated coefficient of 1.65, catchers are expected to have 1.65 times the MVP vote points of the baseline outfielders, holding all else constant. Meanwhile, all 5 numerical variables are found to be significant at the 95% Bayesian credible interval. A 1% increase in the team's winning percentage is expected to increase MVP vote points by a multiplicative factor of 1.07, holding all else constant. A 1 unit increase in WAR is expected to increase MVP vote points by a multiplicative factor of 1.32, holding all else constant. A 1% increase in slugging percentage is expected to increase MVP vote points by a multiplicative factor of 1.12.
+
+Below are the coefficient and 95% Bayesian credible interval results for the MVP pitchers model:
+
 ```{r pitcher-model, include=FALSE}
 pitcher_model <-  stan_glm(`Vote Pts` ~ League + Position + COVID + `W-L%`
                           + WAR + IP + ERA + `H&BB`,
@@ -160,7 +167,25 @@ pitcher_results %>%
   kable_styling(full_width = F, latex_options = "HOLD_position")
 ```
 
+The reliever position is found to be significant at the 95% Bayesian credible interval. With an exponentiated coefficient of 0.19, relievers are expected to have 0.19 times the MVP vote points of the baseline starting pitchers, holding all else constant. While a player's team's winning percentage is not found to be significant at the 95% Bayesian credible interval for the MVP pitchers model, WAR and hits and walked allowed are found to be significant. A 1 unit increase in WAR is expected to increase MVP vote points by a multiplicative factor of 1.39, holding all else constant. Each additional hit or walk allowed by a pitcher is expected to decrease MVP vote points by a multiplicative factor of 0.98.
+
 # 4: Discussion
+
+## 4.1: Conclusions
+
+Using a 2 model approach, I have identified some of the factors that are correlated with the MVP voting outcomes of batters and pitchers respectively. Given the high positive values of the coefficient and 95% credible interval bounds of the catcher position in the MVP batters model, my model suggests that if a catcher and outfielder had the same offensive and defensive contributions throughout a season, the catcher would garner more MVP vote points. This makes sense because as mentioned above, catcher is one of the most demanding defensive positions in baseball. So even if the catcher and outfielder provided the same defensive production at their respective positions, the catcher's defensive production is much more valuable because of how difficult the position is to begin with. In addition, if a catcher were able to provide the same elite level offensive production as an outfielder, the catcher's offensive production is much more valuable because few catchers have the offensive prowess to offer that level of production out of the catching position. Contrary to what my boxplots in the introduction may suggest, corner infielders do not have an advantage in MVP voting outcomes. Instead, corner infielders likely had better average MVP voting outcomes because of their high average offensive production relative to other more defensively demanding positions. But if there were players in more demanding defensive positions such as catcher who were able to provide the same level of offensive and defensive production as a corner infielder, my model suggests that voters would favor the catcher because of how difficult it is provide that level of production from such a demanding position.
+
+The negative values of the coefficient and 95% credible interval bounds for the reliever position in the MVP pitchers model suggests that if a starter and reliever provided the same level of pitching production throughout a season, the starter would garner more MVP votes. This positional correlation among pitchers also makes sense because of the high value put on starting pitchers in the first place. Front offices and fans alike often lament about how difficult it is to acquire and/or develop elite starting pitching. While elite relievers are certainly valuable in their own respect, especially in high leverage situations in the late innings, most relievers are failed starters who did not quite have the stamina, pitch mix, or control to make it as a quality starter in the major leagues. Furthermore, elite starters more than double the innings workload of relievers which typically makes starting pitchers more valuable over a full season. Nonetheless, the coefficient is to be interpreted while holding all else constant so it is interesting to note that even if a starter and reliever had the same exact pitching contributions throughout a season, the starter would still garner more MVP vote points.
+
+As expected, WAR had a high correlation with MVP vote points in both the batters and pitchers models. This does not come as much of a surprise because WAR is such an all encompassing statistic that provides accurate and informative values of the true overall production of players. Since the models only utilize data from 2004 to 2021 which is the period of time in which WAR became available as a statistic, my model also suggests WAR is likely a major factor in the decisions of MLB MVP voters. Since slugging percentage is more or less a measure of hitting ability and power, the significance of slugging percentage also suggests the voters' bias towards offensive production among MVP batters.
+
+Team's winning percentage was only significant in the MVP batters model but not the MVP pitchers model. Furthermore, the multiplicative effect of team's winning percentage in the MVP batters model is subtle which suggests that voters are less influenced by the success of a player's team than I originally thought. In addition, innings pitched was not significant in the MVP pitchers model and at bats was significant in the MVP batters model but also only had a subtle multiplicative effect on MVP vote points. These results suggest that while health and availability may be important for a player to be considered for MVP, slight differences in availability will not outweigh the overall production a player provides in a season.
+
+## 4.2: Limitations and Future Work
+
+While the 2 model approach allowed me to model both batters and pitchers in the MVP voting process, it does not really allow for direct comparison between the MVP voting considerations of batters and pitchers. I believe that pitchers in general have a disadvantage in the MVP voting process but this cannot be quantified with the 2 model approach. Furthermore, the 2 model approach is insufficient for modeling the newest face of baseball: Shohei Ohtani. As the first 2 way player since Babe Ruth, Ohtani shattered all kinds of MLB records in 2021 on his way to a strong MVP season. Ohtani is unique in that he was one of the best hitters in baseball throughout the season as a designated hitter while also being a top level starting pitcher. The 2 model approach forced me to include Ohtani's batting and pitching contributions separately in my models. Therefore, my models would be very poor at predicting his MVP vote points because it cannot combine the information of his batting and pitching production. Finding a single model to be able to analyze all MVP candidates, regardless of position or multi-positionality would be the next step for this project.
+
+Another major limitation of my approach are the batting and pitching statistics I utilized. On base percentage, slugging percentage, ERA, and WHIP are some of the most traditional batting and pitching statistics that have been tracked since the beginning of baseball. While they are great for quantifying the actual results of the player, it does not quantify the expected performance of a player. Baseball is such a random luck driven sport that there are inevitably players that get luckuy or unlucky throughout a whole season. Statistics such as wOBA and FIP are performance independent statistics that would help identify the true expected performance of a player without the influence of luck or chance. I think utilizing these perforamcne independent statistics would help me further analyze the best and most valuable players in a season without the added variability of luck.
 
 # 5: Appendix
 
@@ -214,7 +239,4 @@ pitcher_diagnostics %>%
   kbl(caption = "MVP Pitchers Model Diagnostics", digits = 3) %>%
   kable_styling(full_width = F, latex_options = "HOLD_position")
 ```
-
-# 6: References
-
 
